@@ -15,23 +15,41 @@ import static net.minecraft.server.command.CommandManager.*;
 
 public class MissionCommands {
     public static int base(CommandContext<ServerCommandSource> commandContext) {
-        commandContext.getSource().sendFeedback(() -> Text.literal(StateSaverAndLoader.getServerState(commandContext.getSource().getServer()).serializedMissions), false);
+        return 1;
+    }
+
+    public static int getAllMissions(CommandContext<ServerCommandSource> commandContext) {
+        commandContext.getSource().sendFeedback(() ->
+                        Text.literal(
+                                getMissionsAsString(MissionHolder.missions)
+                        ),
+                false
+        );
+
         return 1;
     }
 
     public static int getMissions(CommandContext<ServerCommandSource> commandContext) {
-        String str = "";
-
         ArrayList<Mission> weeklyMissions = MissionHolder.getWeeklyMissions(commandContext.getSource().getServer());
 
-        for (Mission weeklyMission : weeklyMissions) {
-            str = str.concat(weeklyMission.toString());
-        }
-
-        String finalStr = str;
-        commandContext.getSource().sendFeedback(() -> Text.literal(finalStr), false);
+        commandContext.getSource().sendFeedback(() ->
+                Text.literal(
+                        getMissionsAsString(weeklyMissions)
+                ),
+                false
+        );
 
         return 1;
+    }
+
+    private static String getMissionsAsString(ArrayList<Mission> missions) {
+        String str = "";
+
+        for (Mission mission : missions) {
+            str = str.concat(mission.toString());
+        }
+
+        return str;
     }
 
     public static void initialize() {
@@ -39,9 +57,13 @@ public class MissionCommands {
                 (commandDispatcher, commandRegistryAccess, registrationEnvironment) ->
                         commandDispatcher.register(
                                 literal("missions")
+                                        .requires(source -> source.hasPermissionLevel(2))
                                         .executes(MissionCommands::base)
                                         .then(literal("show")
                                                 .executes(MissionCommands::getMissions)
+                                        )
+                                        .then(literal("showAll")
+                                                .executes(MissionCommands::getAllMissions)
                                         )
                                         .then(literal("reroll")
                                                 .executes(MissionHolder::rerollMissions)

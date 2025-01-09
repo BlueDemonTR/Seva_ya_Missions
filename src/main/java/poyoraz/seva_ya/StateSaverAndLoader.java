@@ -7,9 +7,12 @@ import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 public class StateSaverAndLoader extends PersistentState {
 
-    public String serializedMissions = "";
+    public ArrayList<String> currentMissions = new ArrayList<>();
 
     private static Type<StateSaverAndLoader> type = new Type<>(
             StateSaverAndLoader::new, // If there's no 'StateSaverAndLoader' yet create one
@@ -38,13 +41,25 @@ public class StateSaverAndLoader extends PersistentState {
 
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        nbt.putString("serializedMissions", serializedMissions);
+        NbtCompound nbtCompound = new NbtCompound();
+        for (int i = 0; i < currentMissions.size(); i++) {
+            nbtCompound.putString(String.valueOf(i), currentMissions.get(i));
+        }
+
+        nbt.put("currentMissions", nbtCompound);
         return nbt;
     }
 
     public static StateSaverAndLoader createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         StateSaverAndLoader state = new StateSaverAndLoader();
-        state.serializedMissions = tag.getString("serializedMissions");
+
+        ArrayList<String> currentMissions = new ArrayList<>();
+        NbtCompound missions = tag.getCompound("currentMissions");
+        missions.getKeys().forEach(key -> {
+            currentMissions.add(missions.getString(key));
+        });
+        state.currentMissions = currentMissions;
+
         return state;
     }
 }
