@@ -45,7 +45,6 @@ public class StateSaverAndLoader extends PersistentState {
     public static StateSaverAndLoader createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         StateSaverAndLoader state = new StateSaverAndLoader();
         state.serializedMissions = tag.getString("serializedMissions");
-        MissionHolder.deserializeCurrentMissions(state.serializedMissions);
         return state;
     }
 }

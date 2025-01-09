@@ -2,11 +2,14 @@ package poyoraz.seva_ya;
 
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import poyoraz.seva_ya.config.MissionsConfig;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
+
+import java.util.ArrayList;
 
 import static net.minecraft.server.command.CommandManager.*;
 
@@ -19,8 +22,10 @@ public class MissionCommands {
     public static int getMissions(CommandContext<ServerCommandSource> commandContext) {
         String str = "";
 
-        for (int i = 0; i < MissionHolder.weeklyMissions.size(); i++) {
-            str = str.concat(MissionHolder.weeklyMissions.get(i).toString());
+        ArrayList<Mission> weeklyMissions = MissionHolder.getWeeklyMissions(commandContext.getSource().getServer());
+
+        for (Mission weeklyMission : weeklyMissions) {
+            str = str.concat(weeklyMission.toString());
         }
 
         String finalStr = str;

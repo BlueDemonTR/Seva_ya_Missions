@@ -18,7 +18,28 @@ import java.util.Arrays;
 public class MissionHolder {
     public static ArrayList<Mission> missions = new ArrayList<>();
 
-    public static ArrayList<Mission> weeklyMissions = new ArrayList<>();
+    private static ArrayList<Mission> weeklyMissions = new ArrayList<>();
+    private static boolean missionsCached = false;
+
+    public static ArrayList<Mission> getWeeklyMissions(MinecraftServer server) {
+        if(missionsCached) return weeklyMissions;
+
+        String idList = StateSaverAndLoader.getServerState(server).serializedMissions;
+
+        ArrayList<Mission> _missions = new ArrayList<>();
+
+        ArrayList<String> ids = new ArrayList<String>(Arrays.asList(idList.split("/")));
+
+        ids.forEach(( id ) -> {
+            Mission mission = getMissionById(id);
+            if(mission != null) _missions.add(mission);
+        });
+
+        weeklyMissions = _missions;
+        missionsCached = true;
+
+        return _missions;
+    }
 
     public static void parseMissions() {
         MissionsConfig.allTasks.forEach((jsonString) -> {
@@ -54,58 +75,54 @@ public class MissionHolder {
     }
 
     public static int rerollMissions(CommandContext<ServerCommandSource> commandContext) {
-        weeklyMissions.clear();
+        MinecraftServer server = commandContext.getSource().getServer();
 
-        addWeeklyMissionsByDifficulty(MissionType.EASY, MissionsConfig.easyTaskCount);
-        addWeeklyMissionsByDifficulty(MissionType.MEDIUM, MissionsConfig.mediumTaskCount);
-        addWeeklyMissionsByDifficulty(MissionType.HARD, MissionsConfig.hardTaskCount);
+        StateSaverAndLoader stateSaver = StateSaverAndLoader.getServerState(server);
+        stateSaver.serializedMissions = "";
+        missionsCached = false;
 
-        serializeMissions(commandContext.getSource().getServer());
+        addWeeklyMissionsByDifficulty(MissionType.EASY, MissionsConfig.easyTaskCount, server);
+        addWeeklyMissionsByDifficulty(MissionType.MEDIUM, MissionsConfig.mediumTaskCount, server);
+        addWeeklyMissionsByDifficulty(MissionType.HARD, MissionsConfig.hardTaskCount, server);
 
         return 1;
     }
 
-    private static void addWeeklyMissionsByDifficulty(MissionType type, int count) {
+    private static void addWeeklyMissionsByDifficulty(MissionType type, int count, MinecraftServer server) {
         ArrayList<Mission> filtered = getMissionsByDifficulty(type);
-        if(filtered.size() <= count) {
-            weeklyMissions.addAll(filtered);
-        }
-        while(count > 0) {
-            int random = (int) (Math.random() * filtered.size());
-            Mission mission = filtered.get(random);
+        ArrayList<Mission> toAdd = new ArrayList<>();
 
-            if(weeklyMissions.contains(mission)) {
-                continue;
-            } else {
-                weeklyMissions.add(mission);
-                count--;
+        if(filtered.size() <= count) {
+            toAdd = filtered;
+        } else {
+            while(count > 0) {
+                int random = (int) (Math.random() * filtered.size());
+                Mission mission = filtered.get(random);
+
+                if(toAdd.contains(mission)) {
+                    continue;
+                } else {
+                    toAdd.add(mission);
+                    count--;
+                }
             }
         }
-    }
-    public static void serializeMissions(MinecraftServer server) {
-        ArrayList<String> currentMissions = new ArrayList<>();
 
-        weeklyMissions.forEach((mission) -> {
-            currentMissions.add(mission.id);
+        toAdd.forEach((mission) -> {
+            addMissionToWeekly(mission, server);
         });
-
-        StateSaverAndLoader serverState = StateSaverAndLoader.getServerState(server);
-
-        serverState.serializedMissions = String.join("/", currentMissions);
     }
 
-    public static void deserializeCurrentMissions(String idList) {
-        weeklyMissions.clear();
+    private static void addMissionToWeekly(Mission mission, MinecraftServer server) {
+        StateSaverAndLoader stateSaver = StateSaverAndLoader.getServerState(server);
 
-        Seva_ya_Missions.LOGGER.info("bepis: " + idList);
+        if(!stateSaver.serializedMissions.isEmpty()) {
+           stateSaver.serializedMissions += "/";
+        }
 
-        ArrayList<String> ids = new ArrayList<>(Arrays.asList(idList.split("/")));
+        stateSaver.serializedMissions += mission.id;
 
-        ids.forEach(( id ) -> {
-            Mission mission = getMissionById(id);
-            Seva_ya_Missions.LOGGER.info("bepis: " + id);
-            if(mission != null) weeklyMissions.add(mission);
-        });
+        missionsCached = false;
     }
 
     public static Mission getMissionById(String id) {
