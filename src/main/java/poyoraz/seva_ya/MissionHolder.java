@@ -3,17 +3,17 @@ package poyoraz.seva_ya;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.brigadier.context.CommandContext;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.minecraft.network.PacketByteBuf;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.util.Identifier;
+import net.minecraft.text.Text;
 import poyoraz.seva_ya.config.MissionsConfig;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
+import poyoraz.seva_ya.models.PlayerData;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class MissionHolder {
     public static ArrayList<Mission> missions = new ArrayList<>();
@@ -21,7 +21,7 @@ public class MissionHolder {
     private static ArrayList<Mission> weeklyMissions = new ArrayList<>();
     private static boolean missionsCached = false;
 
-    public static ArrayList<Mission> getWeeklyMissions(MinecraftServer server) {
+    public static ArrayList<Mission> getWeeklyMissionsAdmin(MinecraftServer server) {
         if(missionsCached) return weeklyMissions;
 
         ArrayList<String> ids = StateSaverAndLoader.getServerState(server).currentMissions;
@@ -72,32 +72,35 @@ public class MissionHolder {
         return filtered;
     }
 
-    public static int rerollMissions(CommandContext<ServerCommandSource> commandContext) {
-        MinecraftServer server = commandContext.getSource().getServer();
-
-        Seva_ya_Missions.LOGGER.info("Bepis1");
-
+    public static int grantMissions(CommandContext<ServerCommandSource> commandContext) {
         try {
-            StateSaverAndLoader stateSaver = StateSaverAndLoader.getServerState(server);
-            stateSaver.currentMissions.clear();
-            missionsCached = false;
+            LivingEntity player = EntityArgumentType.getPlayer(commandContext, "player");
+
+            PlayerData playerData = StateSaverAndLoader.getPlayerState(player);
+
+            playerData.missionsPulled = true;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        Seva_ya_Missions.LOGGER.info("Bepis2");
+        return 0;
+    }
 
+    public static int rerollMissions(CommandContext<ServerCommandSource> commandContext) {
+        MinecraftServer server = commandContext.getSource().getServer();
+
+        StateSaverAndLoader stateSaver = StateSaverAndLoader.getServerState(server);
+
+        stateSaver.players.forEach((uuid, playerData) -> {
+            playerData.missionsPulled = false;
+        });
+
+
+        stateSaver.currentMissions.clear();
+        missionsCached = false;
         addWeeklyMissionsByDifficulty(MissionType.EASY, MissionsConfig.easyTaskCount, server);
-
-        Seva_ya_Missions.LOGGER.info("Bepis3");
         addWeeklyMissionsByDifficulty(MissionType.MEDIUM, MissionsConfig.mediumTaskCount, server);
-
-
-        Seva_ya_Missions.LOGGER.info("Bepis4");
         addWeeklyMissionsByDifficulty(MissionType.HARD, MissionsConfig.hardTaskCount, server);
-
-
-        Seva_ya_Missions.LOGGER.info("Bepis5");
         return 1;
     }
 

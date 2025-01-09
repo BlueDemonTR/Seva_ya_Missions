@@ -1,18 +1,23 @@
 package poyoraz.seva_ya;
 
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.World;
+import poyoraz.seva_ya.models.PlayerData;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.UUID;
 
 public class StateSaverAndLoader extends PersistentState {
 
     public ArrayList<String> currentMissions = new ArrayList<>();
+    public HashMap<UUID, PlayerData> players = new HashMap<>();
 
     private static Type<StateSaverAndLoader> type = new Type<>(
             StateSaverAndLoader::new, // If there's no 'StateSaverAndLoader' yet create one
@@ -46,8 +51,26 @@ public class StateSaverAndLoader extends PersistentState {
             nbtCompound.putString(String.valueOf(i), currentMissions.get(i));
         }
 
+        NbtCompound playersNbt = new NbtCompound();
+        players.forEach((uuid, playerData) -> {
+            NbtCompound playerNbt = new NbtCompound();
+            playerNbt.putBoolean("missionsPulled", playerData.missionsPulled);
+
+            playersNbt.put(uuid.toString(), playerNbt);
+        });
+        nbt.put("playersNbt", playersNbt);
+
         nbt.put("currentMissions", nbtCompound);
         return nbt;
+    }
+
+    public static PlayerData getPlayerState(LivingEntity player) {
+        StateSaverAndLoader serverState = getServerState(player.getWorld().getServer());
+
+        // Either get the player by the uuid, or we don't have data for them yet, make a new player state
+        PlayerData playerState = serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
+
+        return playerState;
     }
 
     public static StateSaverAndLoader createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
@@ -59,6 +82,16 @@ public class StateSaverAndLoader extends PersistentState {
             currentMissions.add(missions.getString(key));
         });
         state.currentMissions = currentMissions;
+
+        NbtCompound playersNbt = tag.getCompound("playersNbt");
+        playersNbt.getKeys().forEach(key -> {
+            PlayerData playerData = new PlayerData();
+            NbtCompound playerNbt = playersNbt.getCompound(key);
+
+            playerData.missionsPulled = playerNbt.getBoolean(key);
+            UUID uuid = UUID.fromString(key);
+            state.players.put(uuid, playerData);
+        });
 
         return state;
     }
