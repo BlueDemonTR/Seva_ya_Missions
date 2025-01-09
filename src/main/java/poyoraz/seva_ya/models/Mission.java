@@ -1,12 +1,14 @@
 package poyoraz.seva_ya.models;
 
 public class Mission {
+    public String id;
     public String name;
     public String description;
     public MissionType type;
     public int reward;
 
-    public Mission(String name, String description, MissionType type, int reward) {
+    public Mission(String id, String name, String description, MissionType type, int reward) {
+        this.id = id;
         this.name = name;
         this.description = description;
         this.type = type;

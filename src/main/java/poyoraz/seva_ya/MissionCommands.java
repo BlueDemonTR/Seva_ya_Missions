@@ -12,15 +12,15 @@ import static net.minecraft.server.command.CommandManager.*;
 
 public class MissionCommands {
     public static int base(CommandContext<ServerCommandSource> commandContext) {
-        commandContext.getSource().sendFeedback(() -> Text.literal("bepis"), false);
+        commandContext.getSource().sendFeedback(() -> Text.literal(StateSaverAndLoader.getServerState(commandContext.getSource().getServer()).serializedMissions), false);
         return 1;
     }
 
     public static int getMissions(CommandContext<ServerCommandSource> commandContext) {
         String str = "";
 
-        for (int i = 0; i < Seva_ya_Missions.missions.size(); i++) {
-            str = str.concat(Seva_ya_Missions.missions.get(i).toString());
+        for (int i = 0; i < MissionHolder.weeklyMissions.size(); i++) {
+            str = str.concat(MissionHolder.weeklyMissions.get(i).toString());
         }
 
         String finalStr = str;
@@ -37,6 +37,9 @@ public class MissionCommands {
                                         .executes(MissionCommands::base)
                                         .then(literal("show")
                                                 .executes(MissionCommands::getMissions)
+                                        )
+                                        .then(literal("reroll")
+                                                .executes(MissionHolder::rerollMissions)
                                         )
                         )
         );
