@@ -2,11 +2,8 @@ package poyoraz.seva_ya;
 
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 import poyoraz.seva_ya.config.MissionsConfig;
 import poyoraz.seva_ya.models.AssignedMission;
 import poyoraz.seva_ya.models.Mission;
@@ -111,23 +108,8 @@ public class CurrentMissionsHolder {
         playerData.tryingToComplete = null;
         playerData.witnesses.clear();
 
-        ItemStack reward = new ItemStack(
-                Registries.ITEM.get(Identifier.of(MissionsConfig.reward)),
-                mission.reward
-        );
+        mission.rewardPlayer((PlayerEntity) player);
 
-        PlayerEntity playerEntity = (PlayerEntity) player;
-        playerEntity.sendMessage(Text.of(
-                        "You have completed the mission successfully! You get "
-                                + mission.reward
-                                + " "
-                                + reward.getName().getString()
-                                + (mission.reward != 1 ? "s" : "")
-                ),
-                false
-        );
-
-        player.giveOrDropStack(reward);
         removeMissionFromCurrent(mission, player.getServer());
     }
 

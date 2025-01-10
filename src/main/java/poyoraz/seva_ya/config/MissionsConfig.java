@@ -19,5 +19,10 @@ public class MissionsConfig extends MidnightConfig {
     @Entry(category = NUMBERS, name="Hard Task Count Per Week") public static int hardTaskCount = 1;
     @Entry(category = NUMBERS, name="Assigned Task Count Per Week") public static int assignedTaskCount = -1;
     @Entry(category = NUMBERS, name="Eternal Task Count Per Week") public static int eternalTaskCount = -1;
-    @Entry(category = TEXT, name="Reward Item") public static String reward = "minecraft:diamond";
+    @Entry(category = NUMBERS, name="Scaling Base") public static int scalingBase = 9;
+    @Entry(category = LISTS, name="Reward List") public static List<String> rewards = Lists.newArrayList(
+            "minecraft:iron_nugget",
+            "minecraft:iron_ingot",
+            "minecraft:iron_block"
+    );
 }

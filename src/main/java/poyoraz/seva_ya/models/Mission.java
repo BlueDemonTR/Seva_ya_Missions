@@ -1,7 +1,14 @@
 package poyoraz.seva_ya.models;
 
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
+import poyoraz.seva_ya.config.MissionsConfig;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.UUID;
 
 public class Mission {
@@ -66,6 +73,65 @@ public class Mission {
 
     @Override
     public String toString() {
-        return "§l[" + getTypeName() + "]§r " + name + ": " + description + "\nReward: " + reward + " Sevayic Shards\n";
+        return "§l[" + getTypeName() + "]§r " + name + ": " + description + "\nReward: " + getRewardText();
+    }
+
+    public ArrayList<ItemStack> getRewards() {
+        ArrayList<ItemStack> rewards = new ArrayList<>();
+
+        int remainingAwards = reward;
+
+        ArrayList<String> reversedAwards = new ArrayList<>(MissionsConfig.rewards.reversed());
+
+        for (int i = 0; i < MissionsConfig.rewards.size(); i++) {
+            int power = MissionsConfig.rewards.size() - (i + 1);
+            int value = (int) Math.pow(MissionsConfig.scalingBase, power);
+
+            String currentAward = reversedAwards.get(i);
+
+            int itemCount = (int) Math.floor((double) remainingAwards / value);
+
+            remainingAwards %= value;
+
+            rewards.add(
+                new ItemStack(
+                        Registries.ITEM.get(Identifier.of(currentAward)),
+                        itemCount
+                )
+            );
+        }
+
+        return rewards;
+    }
+
+    public String getRewardText() {
+        StringBuilder str = new StringBuilder();
+
+        ArrayList<ItemStack> rewards = getRewards();
+
+        for (ItemStack reward : rewards) {
+            int count = reward.getCount();
+
+            if(count == 0) continue;
+
+            str.append(count);
+            str.append(" ");
+            str.append(reward.getName().getString());
+            str.append(count != 1 ? "s, " : ", ");
+        }
+
+        str.delete(str.length() - 2, str.length());
+
+        return str.toString();
+    }
+
+    public void rewardPlayer(PlayerEntity player) {
+        player.sendMessage(Text.of(
+                        "You have completed the mission successfully! You get " + getRewardText()
+                ),
+                false
+        );
+
+        getRewards().forEach(player::giveOrDropStack);
     }
 }

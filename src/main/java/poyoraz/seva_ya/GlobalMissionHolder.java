@@ -82,13 +82,16 @@ public class GlobalMissionHolder {
     }
 
     public static String getMissionsAsString(ArrayList<Mission> missions) {
-        String str = "";
+        StringBuilder str = new StringBuilder();
 
         for (Mission mission : missions) {
-            str = str.concat(mission.toString());
+            str.append(mission.toString());
+            str.append('\n');
         }
 
-        return str;
+        str.deleteCharAt(str.length() - 1);
+
+        return str.toString();
     }
 
     public static boolean isMissionBound(Mission mission, MinecraftServer server) {

@@ -3,9 +3,9 @@
 	"id": "seva_ya_missions",
 	"version": "${version}",
 	"name": "Seva_ya_Missions",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "A mod that allows the creation of missions, that can be created dynamically, bound and be assigned. Has no automatic checks",
 	"authors": [
-		"Me!"
+		"Poyoraz"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
@@ -13,7 +13,7 @@
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/seva_ya_missions/icon.png",
-	"environment": "*",
+	"environment": "server",
 	"entrypoints": {
 		"main": [
 			"poyoraz.seva_ya.Seva_ya_Missions"
