@@ -7,19 +7,17 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.World;
+import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.PlayerData;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 public class StateSaverAndLoader extends PersistentState {
 
     public ArrayList<String> currentMissions = new ArrayList<>();
     public HashMap<UUID, PlayerData> players = new HashMap<>();
 
-    private static Type<StateSaverAndLoader> type = new Type<>(
+    private static final Type<StateSaverAndLoader> type = new Type<>(
             StateSaverAndLoader::new, // If there's no 'StateSaverAndLoader' yet create one
             StateSaverAndLoader::createFromNbt, // If there is a 'StateSaverAndLoader' NBT, parse it with 'createFromNbt'
             null // Supposed to be an 'DataFixTypes' enum, but we can just pass null
@@ -64,8 +62,14 @@ public class StateSaverAndLoader extends PersistentState {
 
             NbtCompound witnesses = new NbtCompound();
             putStringArray(witnesses, playerData.witnesses);
-
             playerNbt.put("witnesses", witnesses);
+
+            NbtCompound boundMissions = new NbtCompound();
+            putStringArray(
+                    boundMissions,
+                    playerData.boundMissions.stream().map(mission -> mission.id).toList()
+            );
+            playerNbt.put("boundMissions", boundMissions);
 
             playersNbt.put(uuid.toString(), playerNbt);
         });
@@ -82,7 +86,7 @@ public class StateSaverAndLoader extends PersistentState {
         return serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
     }
 
-    public static void putStringArray(NbtCompound nbtCompound, ArrayList<?> array) {
+    public static void putStringArray(NbtCompound nbtCompound, List<?> array) {
         for (int i = 0; i < array.size(); i++) {
             nbtCompound.putString(String.valueOf(i),  array.get(i).toString());
         }
@@ -118,6 +122,13 @@ public class StateSaverAndLoader extends PersistentState {
                     getStringArray(playerNbt.getCompound("witnesses"))
                             .stream()
                             .map(UUID::fromString)
+                            .toList()
+            );
+
+            playerData.boundMissions = new ArrayList<Mission>(
+                    getStringArray(playerNbt.getCompound("boundMissions"))
+                            .stream()
+                            .map(GlobalMissionHolder::getMissionById)
                             .toList()
             );
 

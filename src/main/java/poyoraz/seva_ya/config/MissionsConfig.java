@@ -17,5 +17,7 @@ public class MissionsConfig extends MidnightConfig {
     @Entry(category = NUMBERS, name="Easy Task Count Per Week") public static int easyTaskCount = 4;
     @Entry(category = NUMBERS, name="Medium Task Count Per Week") public static int mediumTaskCount = 2;
     @Entry(category = NUMBERS, name="Hard Task Count Per Week") public static int hardTaskCount = 1;
+    @Entry(category = NUMBERS, name="Assigned Task Count Per Week") public static int assignedTaskCount = -1;
+    @Entry(category = NUMBERS, name="Eternal Task Count Per Week") public static int eternalTaskCount = -1;
     @Entry(category = TEXT, name="Reward Item") public static String reward = "minecraft:diamond";
 }

@@ -5,18 +5,15 @@ import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import poyoraz.seva_ya.config.MissionsConfig;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
 import poyoraz.seva_ya.models.PlayerData;
-import java.util.ArrayList;
+import poyoraz.seva_ya.suggesters.CurrentMissionSuggester;
+import poyoraz.seva_ya.suggesters.EternalMissionSuggester;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -43,7 +40,26 @@ public class MissionCommands {
     public static int getCurrentMissions(CommandContext<ServerCommandSource> commandContext) {
         feedback(
                 GlobalMissionHolder.getMissionsAsString(
-                        CurrentMissionsHolder.getWeeklyMissions(commandContext.getSource().getServer())
+                        CurrentMissionsHolder.getMissions(commandContext.getSource().getServer())
+                ),
+                commandContext.getSource()
+        );
+
+        return 1;
+    }
+
+    public static int getBoundMissions(CommandContext<ServerCommandSource> commandContext) {
+        PlayerData playerData = StateSaverAndLoader.getPlayerState(
+                Objects.requireNonNull(
+                                commandContext
+                                        .getSource()
+                                        .getPlayer()
+                        )
+                );
+
+        feedback(
+                GlobalMissionHolder.getMissionsAsString(
+                        playerData.boundMissions
                 ),
                 commandContext.getSource()
         );
@@ -125,17 +141,17 @@ public class MissionCommands {
     }
 
     public static int witnessPlayer(CommandContext<ServerCommandSource> commandContext) {
-        LivingEntity player;
+        LivingEntity missionOwner;
 
         try {
-            player = EntityArgumentType.getPlayer(commandContext, "player");
+            missionOwner = EntityArgumentType.getPlayer(commandContext, "player");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        LivingEntity contextPlayer = commandContext.getSource().getPlayer();
+        LivingEntity witnessPlayer = commandContext.getSource().getPlayer();
 
-        if(Objects.equals(contextPlayer, player)) {
+        if(Objects.equals(witnessPlayer, missionOwner)) {
             feedback(
                     "You can't witness your own mission",
                     commandContext.getSource()
@@ -143,8 +159,8 @@ public class MissionCommands {
             return 0;
         }
 
-        PlayerData playerData = StateSaverAndLoader.getPlayerState(player);
-        UUID uuid = Objects.requireNonNull(contextPlayer).getUuid();
+        PlayerData playerData = StateSaverAndLoader.getPlayerState(missionOwner);
+        UUID uuid = Objects.requireNonNull(witnessPlayer).getUuid();
 
         if(playerData.tryingToComplete == null) {
             feedback(
@@ -163,7 +179,91 @@ public class MissionCommands {
         }
 
         playerData.witnesses.add(uuid);
-        CurrentMissionsHolder.checkMissionCompletion(player);
+        CurrentMissionsHolder.checkMissionCompletion(missionOwner);
+
+        return 1;
+    }
+
+    public static int bindEternalMission(CommandContext<ServerCommandSource> commandContext) {
+        LivingEntity missionOwner;
+
+        try {
+            missionOwner = EntityArgumentType.getPlayer(commandContext, "player");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        PlayerData playerData = StateSaverAndLoader.getPlayerState(missionOwner);
+
+        if(playerData.tryingToComplete == null) {
+            feedback(
+                    "This player isn't trying to complete a mission",
+                    commandContext.getSource()
+            );
+            return 0;
+        }
+
+        if(playerData.tryingToComplete.type != MissionType.ETERNAL) {
+            feedback(
+                    "Mission isn't eternal",
+                    commandContext.getSource()
+            );
+            return 0;
+        }
+
+        if(GlobalMissionHolder.isMissionBound(playerData.tryingToComplete, commandContext.getSource().getServer())) {
+            feedback(
+                    "Mission is already bound",
+                    commandContext.getSource()
+            );
+        }
+
+        feedback(
+                "Bound player to eternal mission: " + playerData.tryingToComplete.name,
+                commandContext.getSource()
+        );
+
+        playerData.boundMissions.add(playerData.tryingToComplete);
+
+        return 1;
+    }
+
+    public static int unbindEternalMission(CommandContext<ServerCommandSource> commandContext) {
+        LivingEntity missionOwner;
+        Mission mission;
+
+        try {
+            missionOwner = EntityArgumentType.getPlayer(commandContext, "player");
+            String name = StringArgumentType.getString(commandContext, "mission_name");
+            mission = GlobalMissionHolder.getMissionByName(name);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        PlayerData playerData = StateSaverAndLoader.getPlayerState(missionOwner);
+
+        if(mission == null) {
+            feedback(
+                    "No such mission exists",
+                    commandContext.getSource()
+            );
+        }
+
+        if(!playerData.boundMissions.contains(mission)) {
+            feedback(
+                    "Mission is not bound to this player",
+                    commandContext.getSource()
+            );
+        }
+
+        assert mission != null;
+        feedback(
+                "Unbound player from eternal mission: " + mission.name,
+                commandContext.getSource()
+        );
+
+        playerData.boundMissions.remove(mission);
 
         return 1;
     }
@@ -189,6 +289,25 @@ public class MissionCommands {
                                                         .executes(MissionCommands::grantMissions)
                                                 )
                                         )
+                                        .then(literal("bind")
+                                                .then(argument("player", EntityArgumentType.players())
+                                                        .executes(MissionCommands::bindEternalMission)
+                                                )
+                                        )
+                                        .then(literal("unbind")
+                                                .then(argument("player", EntityArgumentType.players())
+                                                        .then(argument("mission_name", StringArgumentType.string())
+                                                                .suggests((commandContext, suggestionsBuilder) -> {
+                                                                    return (new EternalMissionSuggester())
+                                                                            .getSuggestions(
+                                                                                    commandContext,
+                                                                                    suggestionsBuilder
+                                                                            );
+                                                                })
+                                                                .executes(MissionCommands::unbindEternalMission)
+                                                        )
+                                                )
+                                        )
                         )
         );
 
@@ -202,7 +321,7 @@ public class MissionCommands {
                                         .then(literal("finish")
                                                 .then(argument("mission_name", StringArgumentType.string())
                                                         .suggests((commandContext, suggestionsBuilder) -> {
-                                                            return (new MissionSuggester())
+                                                            return (new CurrentMissionSuggester())
                                                                     .getSuggestions(
                                                                             commandContext,
                                                                             suggestionsBuilder
@@ -216,6 +335,9 @@ public class MissionCommands {
                                                 .then(argument("player", EntityArgumentType.players())
                                                         .executes(MissionCommands::witnessPlayer)
                                                 )
+                                        )
+                                        .then(literal("showBound")
+                                                .executes(MissionCommands::getBoundMissions)
                                         )
                         )
         );

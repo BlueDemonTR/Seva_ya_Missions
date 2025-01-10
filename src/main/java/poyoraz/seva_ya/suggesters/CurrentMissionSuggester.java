@@ -1,4 +1,4 @@
-package poyoraz.seva_ya;
+package poyoraz.seva_ya.suggesters;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -8,27 +8,30 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.command.CommandSource;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.command.ServerCommandSource;
+import poyoraz.seva_ya.CurrentMissionsHolder;
+import poyoraz.seva_ya.StateSaverAndLoader;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.PlayerData;
 
 import java.util.concurrent.CompletableFuture;
 
-public class MissionSuggester implements SuggestionProvider<ServerCommandSource> {
+public class CurrentMissionSuggester extends AbstractMissionSuggester {
 
     @Override
-    public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> commandContext, SuggestionsBuilder suggestionsBuilder) throws CommandSyntaxException {
+    public CompletableFuture<Suggestions> getSuggestions(
+            CommandContext<ServerCommandSource> commandContext,
+            SuggestionsBuilder suggestionsBuilder
+    ) throws CommandSyntaxException {
         LivingEntity player = commandContext.getSource().getPlayer();
 
         assert player != null;
         PlayerData playerData = StateSaverAndLoader.getPlayerState(player);
 
         if(playerData.missionsPulled) {
-            for(Mission mission : CurrentMissionsHolder.getWeeklyMissions(commandContext.getSource().getServer())) {
-
-                if(CommandSource.shouldSuggest(suggestionsBuilder.getRemaining(), mission.name)) {
-                    suggestionsBuilder.suggest("\"" + mission.name + "\"");
-                }
-            }
+            suggestMissions(
+                    CurrentMissionsHolder.getMissions(commandContext.getSource().getServer()),
+                    suggestionsBuilder
+            );
         }
 
         return suggestionsBuilder.buildFuture();

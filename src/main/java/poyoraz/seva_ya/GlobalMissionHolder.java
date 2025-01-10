@@ -12,10 +12,14 @@ import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
 import poyoraz.seva_ya.models.PlayerData;
 
-import java.util.ArrayList;
+import java.util.*;
 
 public class GlobalMissionHolder {
     public static ArrayList<Mission> missions = new ArrayList<>();
+
+    public static ArrayList<Mission> getMissions() {
+        return missions;
+    }
 
     public static void parseMissions() {
         MissionsConfig.allTasks.forEach((jsonString) -> {
@@ -50,6 +54,29 @@ public class GlobalMissionHolder {
         return filtered;
     }
 
+    public static ArrayList<Mission> getAvailableMissionsByDifficulty(MissionType type, MinecraftServer server) {
+        try {
+            ArrayList<Mission> ret = new ArrayList<Mission>(getMissionsByDifficulty(type).stream().filter(mission -> {
+                switch (mission.type) {
+                    case EASY, MEDIUM, HARD -> {
+                        return true;
+                    }
+                    case ETERNAL -> {
+                        return !isMissionBound(mission, server);
+                    }
+                    default -> {
+                        return false;
+                    }
+                }
+            }).toList());
+            Seva_ya_Missions.LOGGER.info("pebis2");
+            return ret;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
     public static String getMissionsAsString(ArrayList<Mission> missions) {
         String str = "";
 
@@ -58,6 +85,17 @@ public class GlobalMissionHolder {
         }
 
         return str;
+    }
+
+    public static boolean isMissionBound(Mission mission, MinecraftServer server) {
+        StateSaverAndLoader state = StateSaverAndLoader.getServerState(server);
+        for(Map.Entry<UUID, PlayerData> set : state.players.entrySet()) {
+            if(set.getValue().boundMissions.contains(mission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static Mission getMissionById(String id) {

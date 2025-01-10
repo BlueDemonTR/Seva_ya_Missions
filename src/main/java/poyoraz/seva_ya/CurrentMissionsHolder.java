@@ -18,7 +18,7 @@ public class CurrentMissionsHolder {
     private static ArrayList<Mission> missions = new ArrayList<>();
     private static boolean missionsCached = false;
 
-    public static ArrayList<Mission> getWeeklyMissions(MinecraftServer server) {
+    public static ArrayList<Mission> getMissions(MinecraftServer server) {
         if(missionsCached) return missions;
 
         ArrayList<String> ids = StateSaverAndLoader.getServerState(server).currentMissions;
@@ -49,13 +49,15 @@ public class CurrentMissionsHolder {
         addWeeklyMissionsByDifficulty(MissionType.EASY, MissionsConfig.easyTaskCount, server);
         addWeeklyMissionsByDifficulty(MissionType.MEDIUM, MissionsConfig.mediumTaskCount, server);
         addWeeklyMissionsByDifficulty(MissionType.HARD, MissionsConfig.hardTaskCount, server);
+        addWeeklyMissionsByDifficulty(MissionType.ASSIGNED, MissionsConfig.assignedTaskCount, server);
+        addWeeklyMissionsByDifficulty(MissionType.ETERNAL, MissionsConfig.eternalTaskCount, server);
     }
 
     private static void addWeeklyMissionsByDifficulty(MissionType type, int count, MinecraftServer server) {
-        ArrayList<Mission> filtered = GlobalMissionHolder.getMissionsByDifficulty(type);
+        ArrayList<Mission> filtered = GlobalMissionHolder.getAvailableMissionsByDifficulty(type, server);
         ArrayList<Mission> toAdd = new ArrayList<>();
 
-        if(filtered.size() <= count) {
+        if(filtered.size() <= count || count == -1) {
             toAdd = filtered;
         } else {
             while(count > 0) {
@@ -84,8 +86,15 @@ public class CurrentMissionsHolder {
         missionsCached = false;
     }
 
-    public static void checkMissionCompletion(LivingEntity player) {
+    private static void removeMissionFromWeekly(Mission mission, MinecraftServer server) {
+        StateSaverAndLoader stateSaver = StateSaverAndLoader.getServerState(server);
 
+        stateSaver.currentMissions.remove(mission.id);
+
+        missionsCached = false;
+    }
+
+    public static void checkMissionCompletion(LivingEntity player) {
         if(checkForCompletion(player) == 1) {
             finishMission(player);
         }
@@ -116,6 +125,7 @@ public class CurrentMissionsHolder {
         );
 
         player.giveOrDropStack(reward);
+        removeMissionFromWeekly(mission, player.getServer());
     }
 
     public static int checkForCompletion(LivingEntity player) {
@@ -137,6 +147,10 @@ public class CurrentMissionsHolder {
             }
             case HARD -> {
                 witnessCount = 2;
+            }
+            case ETERNAL -> {
+                ((PlayerEntity) player).sendMessage(Text.of("This is an eternal mission, an admin needs to bind it to you."), false);
+                return playerData.boundMissions.contains(mission) ? 1 : 0;
             }
             default -> {
                 return 0;
