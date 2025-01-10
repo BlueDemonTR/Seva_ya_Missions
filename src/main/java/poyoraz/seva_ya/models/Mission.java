@@ -3,7 +3,11 @@ package poyoraz.seva_ya.models;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import poyoraz.seva_ya.config.MissionsConfig;
 
@@ -49,31 +53,59 @@ public class Mission {
         return MissionType.ASSIGNED;
     }
 
-    public String getTypeName() {
+    public Text getTypeLabel() {
         switch (type) {
             case EASY -> {
-                return "Easy";
+                return Text.literal("[Easy]").formatted(Formatting.GRAY);
             }
             case MEDIUM -> {
-                return "Medium";
+                return Text.literal("[Medium]").formatted(Formatting.BLUE);
             }
             case HARD -> {
-                return "Hard";
+                return Text.literal("[Hard]").formatted(Formatting.GOLD);
             }
             case ASSIGNED -> {
-                return "Assigned";
+                return Text.literal("[Assigned]").formatted(Formatting.GREEN);
             }
             case ETERNAL -> {
-                return "Eternal";
+                return Text.literal("[Eternal]").formatted(Formatting.DARK_PURPLE);
             }
         }
 
-        return "Invalid Type";
+        return Text.literal("Invalid Type");
+    }
+
+    public Text toText() {
+        MutableText nameText = Text.literal(name).formatted(Formatting.BOLD);
+
+        nameText.setStyle(
+                nameText
+                        .getStyle()
+                        .withHoverEvent(
+                                new HoverEvent(
+                                    HoverEvent.Action.SHOW_TEXT, Text.literal(description)
+                                )
+                        )
+        );
+
+
+        // TODO: Finish this, it should look like [Easy] MISSION NAME: 1+3+2
+
+        MutableText rewards = Text.literal("Rewards");
+
+        return Text
+                .literal("")
+                .append(
+                        getTypeLabel()
+                )
+                .append(nameText)
+                .append(": ")
+                .append(getRewardText());
     }
 
     @Override
     public String toString() {
-        return "§l[" + getTypeName() + "]§r " + name + ": " + description + "\nReward: " + getRewardText();
+        return "§l[" + type.name() + "]§r " + name + ": " + description + "\nReward: " + getRewardText();
     }
 
     public ArrayList<ItemStack> getRewards() {

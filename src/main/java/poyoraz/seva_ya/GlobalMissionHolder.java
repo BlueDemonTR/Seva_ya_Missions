@@ -3,6 +3,8 @@ package poyoraz.seva_ya;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import poyoraz.seva_ya.config.MissionsConfig;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
@@ -81,17 +83,20 @@ public class GlobalMissionHolder {
 
     }
 
-    public static String getMissionsAsString(ArrayList<Mission> missions) {
-        StringBuilder str = new StringBuilder();
+    public static Text getMissionsAsText(ArrayList<Mission> missions) {
+        MutableText text = Text.literal("");
 
-        for (Mission mission : missions) {
-            str.append(mission.toString());
-            str.append('\n');
+        for (int i = 0; i < missions.size(); i++) {
+            Mission mission = missions.get(i);
+            text.append(mission.toText());
+
+            if(i != missions.size() - 1) {
+                text.append("\n");
+            }
+
         }
 
-        str.deleteCharAt(str.length() - 1);
-
-        return str.toString();
+        return text;
     }
 
     public static boolean isMissionBound(Mission mission, MinecraftServer server) {

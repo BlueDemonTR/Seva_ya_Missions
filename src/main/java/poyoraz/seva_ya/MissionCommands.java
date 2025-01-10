@@ -31,9 +31,13 @@ public class MissionCommands {
         source.sendFeedback(() -> Text.literal(string), false);
     }
 
+    public static void feedback(Text text, ServerCommandSource source) {
+        source.sendFeedback(() -> text, false);
+    }
+
     public static int getAllMissions(CommandContext<ServerCommandSource> commandContext) {
         feedback(
-                GlobalMissionHolder.getMissionsAsString(
+                GlobalMissionHolder.getMissionsAsText(
                         GlobalMissionHolder.getMissions(commandContext.getSource().getServer())
                 ),
                 commandContext.getSource()
@@ -44,7 +48,7 @@ public class MissionCommands {
 
     public static int getCurrentMissions(CommandContext<ServerCommandSource> commandContext) {
         feedback(
-                GlobalMissionHolder.getMissionsAsString(
+                GlobalMissionHolder.getMissionsAsText(
                         CurrentMissionsHolder.getMissions(commandContext.getSource().getServer())
                 ),
                 commandContext.getSource()
@@ -63,7 +67,7 @@ public class MissionCommands {
                 );
 
         feedback(
-                GlobalMissionHolder.getMissionsAsString(
+                GlobalMissionHolder.getMissionsAsText(
                         playerData.boundMissions
                 ),
                 commandContext.getSource()
