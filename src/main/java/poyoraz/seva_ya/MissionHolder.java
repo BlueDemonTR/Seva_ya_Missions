@@ -14,6 +14,7 @@ import poyoraz.seva_ya.models.MissionType;
 import poyoraz.seva_ya.models.PlayerData;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class MissionHolder {
     public static ArrayList<Mission> missions = new ArrayList<>();
@@ -140,6 +141,13 @@ public class MissionHolder {
     public static Mission getMissionById(String id) {
         for (Mission mission : missions) {
             if (mission.id.equals(id)) return mission;
+        }
+        return null;
+    }
+
+    public static Mission getMissionByName(String name) {
+        for (Mission mission : missions) {
+            if (mission.name.equals(name)) return mission;
         }
         return null;
     }

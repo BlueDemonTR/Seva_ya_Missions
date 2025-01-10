@@ -47,14 +47,20 @@ public class StateSaverAndLoader extends PersistentState {
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         NbtCompound nbtCompound = new NbtCompound();
-        for (int i = 0; i < currentMissions.size(); i++) {
-            nbtCompound.putString(String.valueOf(i), currentMissions.get(i));
-        }
+        putStringArray(nbtCompound, currentMissions);
 
         NbtCompound playersNbt = new NbtCompound();
         players.forEach((uuid, playerData) -> {
             NbtCompound playerNbt = new NbtCompound();
             playerNbt.putBoolean("missionsPulled", playerData.missionsPulled);
+            playerNbt.putString("tryingToComplete", playerData.tryingToComplete != null
+                    ? playerData.tryingToComplete.id
+                    : "");
+
+            NbtCompound witnesses = new NbtCompound();
+            putStringArray(witnesses, playerData.witnesses);
+
+            playerNbt.put("witnesses", witnesses);
 
             playersNbt.put(uuid.toString(), playerNbt);
         });
@@ -73,23 +79,45 @@ public class StateSaverAndLoader extends PersistentState {
         return playerState;
     }
 
+    public static void putStringArray(NbtCompound nbtCompound, ArrayList<?> array) {
+        for (int i = 0; i < array.size(); i++) {
+            nbtCompound.putString(String.valueOf(i),  array.get(i).toString());
+        }
+    }
+
+    public static ArrayList<String> getStringArray(NbtCompound nbtCompound) {
+        ArrayList<String> curr = new ArrayList<>();
+        nbtCompound.getKeys().forEach(key -> {
+            curr.add(nbtCompound.getString(key));
+        });
+        return curr;
+    }
+
+
     public static StateSaverAndLoader createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         StateSaverAndLoader state = new StateSaverAndLoader();
 
-        ArrayList<String> currentMissions = new ArrayList<>();
         NbtCompound missions = tag.getCompound("currentMissions");
-        missions.getKeys().forEach(key -> {
-            currentMissions.add(missions.getString(key));
-        });
-        state.currentMissions = currentMissions;
+
+        state.currentMissions = getStringArray(missions);
 
         NbtCompound playersNbt = tag.getCompound("playersNbt");
         playersNbt.getKeys().forEach(key -> {
             PlayerData playerData = new PlayerData();
             NbtCompound playerNbt = playersNbt.getCompound(key);
 
-            playerData.missionsPulled = playerNbt.getBoolean(key);
+            playerData.missionsPulled = playerNbt.getBoolean("missionsPulled");
             UUID uuid = UUID.fromString(key);
+
+            playerData.tryingToComplete = MissionHolder.getMissionByName(playerNbt.getString("tryingToComplete"));
+
+            playerData.witnesses = new ArrayList<UUID>(
+                    getStringArray(playerNbt.getCompound("witnesses"))
+                            .stream()
+                            .map(UUID::fromString)
+                            .toList()
+            );
+
             state.players.put(uuid, playerData);
         });
 
