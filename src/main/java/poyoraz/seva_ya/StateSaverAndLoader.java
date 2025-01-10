@@ -10,8 +10,8 @@ import net.minecraft.world.World;
 import poyoraz.seva_ya.models.PlayerData;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.UUID;
 
 public class StateSaverAndLoader extends PersistentState {
@@ -27,7 +27,12 @@ public class StateSaverAndLoader extends PersistentState {
 
     public static StateSaverAndLoader getServerState(MinecraftServer server) {
         // (Note: arbitrary choice to use 'World.OVERWORLD' instead of 'World.END' or 'World.NETHER'.  Any work)
-        PersistentStateManager persistentStateManager = server.getWorld(World.OVERWORLD).getPersistentStateManager();
+        PersistentStateManager persistentStateManager = Objects
+                .requireNonNull(
+                        server
+                                .getWorld(World.OVERWORLD)
+                )
+                .getPersistentStateManager();
 
         // The first time the following 'getOrCreate' function is called, it creates a brand new 'StateSaverAndLoader' and
         // stores it inside the 'PersistentStateManager'. The subsequent calls to 'getOrCreate' pass in the saved
@@ -71,12 +76,10 @@ public class StateSaverAndLoader extends PersistentState {
     }
 
     public static PlayerData getPlayerState(LivingEntity player) {
-        StateSaverAndLoader serverState = getServerState(player.getWorld().getServer());
+        StateSaverAndLoader serverState = getServerState(Objects.requireNonNull(player.getWorld().getServer()));
 
         // Either get the player by the uuid, or we don't have data for them yet, make a new player state
-        PlayerData playerState = serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
-
-        return playerState;
+        return serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
     }
 
     public static void putStringArray(NbtCompound nbtCompound, ArrayList<?> array) {
@@ -109,7 +112,7 @@ public class StateSaverAndLoader extends PersistentState {
             playerData.missionsPulled = playerNbt.getBoolean("missionsPulled");
             UUID uuid = UUID.fromString(key);
 
-            playerData.tryingToComplete = MissionHolder.getMissionByName(playerNbt.getString("tryingToComplete"));
+            playerData.tryingToComplete = GlobalMissionHolder.getMissionByName(playerNbt.getString("tryingToComplete"));
 
             playerData.witnesses = new ArrayList<UUID>(
                     getStringArray(playerNbt.getCompound("witnesses"))

@@ -6,8 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import poyoraz.seva_ya.config.MissionsConfig;
 
-import java.util.ArrayList;
-
 public class Seva_ya_Missions implements ModInitializer {
 	public static final String MOD_ID = "seva_ya_missions";
 
@@ -22,9 +20,8 @@ public class Seva_ya_Missions implements ModInitializer {
 	public void onInitialize() {
 		MidnightConfig.init(MOD_ID, MissionsConfig.class);
 		MissionCommands.initialize();
-		MissionHolder.parseMissions();
+		GlobalMissionHolder.parseMissions();
 
 		StaticInstance = this;
-		LOGGER.info("Hello Fabric world!");
 	}
 }

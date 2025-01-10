@@ -19,10 +19,11 @@ public class MissionSuggester implements SuggestionProvider<ServerCommandSource>
     public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> commandContext, SuggestionsBuilder suggestionsBuilder) throws CommandSyntaxException {
         LivingEntity player = commandContext.getSource().getPlayer();
 
+        assert player != null;
         PlayerData playerData = StateSaverAndLoader.getPlayerState(player);
 
         if(playerData.missionsPulled) {
-            for(Mission mission : MissionHolder.getWeeklyMissionsAdmin(commandContext.getSource().getServer())) {
+            for(Mission mission : CurrentMissionsHolder.getWeeklyMissions(commandContext.getSource().getServer())) {
 
                 if(CommandSource.shouldSuggest(suggestionsBuilder.getRemaining(), mission.name)) {
                     suggestionsBuilder.suggest("\"" + mission.name + "\"");
