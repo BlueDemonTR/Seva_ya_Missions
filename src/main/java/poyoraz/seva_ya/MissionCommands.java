@@ -1,13 +1,16 @@
 package poyoraz.seva_ya;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
+import poyoraz.seva_ya.models.AssignedMission;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
 import poyoraz.seva_ya.models.PlayerData;
@@ -30,7 +33,9 @@ public class MissionCommands {
 
     public static int getAllMissions(CommandContext<ServerCommandSource> commandContext) {
         feedback(
-                GlobalMissionHolder.getMissionsAsString(GlobalMissionHolder.missions),
+                GlobalMissionHolder.getMissionsAsString(
+                        GlobalMissionHolder.getMissions(commandContext.getSource().getServer())
+                ),
                 commandContext.getSource()
         );
 
@@ -116,7 +121,7 @@ public class MissionCommands {
 
         try {
             name = StringArgumentType.getString(commandContext, "mission_name");
-            mission = CurrentMissionsHolder.getMissionByName(name);
+            mission = CurrentMissionsHolder.getMissionByName(name, commandContext.getSource().getServer());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -235,7 +240,7 @@ public class MissionCommands {
         try {
             missionOwner = EntityArgumentType.getPlayer(commandContext, "player");
             String name = StringArgumentType.getString(commandContext, "mission_name");
-            mission = GlobalMissionHolder.getMissionByName(name);
+            mission = GlobalMissionHolder.getMissionByName(name, commandContext.getSource().getServer());
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -268,11 +273,97 @@ public class MissionCommands {
         return 1;
     }
 
+    private static int createAssignedMission(CommandContext<ServerCommandSource> commandContext) {
+        PlayerEntity assignee;
+        String name;
+        String description;
+        int reward;
+
+        try {
+            name = StringArgumentType.getString(commandContext, "name");
+            description = StringArgumentType.getString(commandContext, "description");
+            reward = IntegerArgumentType.getInteger(commandContext, "reward");
+            assignee = EntityArgumentType.getPlayer(commandContext, "assignee");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        AssignedMission assignedMission = new AssignedMission(
+                UUID.randomUUID().toString(),
+                name,
+                description,
+                reward,
+                assignee.getUuid()
+        );
+
+        MinecraftServer server = commandContext.getSource().getServer();
+
+        StateSaverAndLoader state = StateSaverAndLoader.getServerState(server);
+
+        state.assignedMissions.add(assignedMission);
+        CurrentMissionsHolder.missionsCached = false;
+
+        return 1;
+    }
+
+    private static int rewardAssignedMission(CommandContext<ServerCommandSource> commandContext) {
+        LivingEntity assigned;
+
+        try {
+            assigned = EntityArgumentType.getPlayer(commandContext, "player");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+
+        PlayerData playerData = StateSaverAndLoader.getPlayerState(assigned);
+        Mission mission = playerData.tryingToComplete;
+        PlayerEntity assignee = commandContext.getSource().getPlayer();
+
+        if(mission == null) {
+            feedback(
+                    "This player isn't trying to complete a mission",
+                    commandContext.getSource()
+            );
+            return 0;
+        }
+
+        if(mission.type != MissionType.ASSIGNED) {
+            feedback(
+                    "Mission isn't an assigned mission",
+                    commandContext.getSource()
+            );
+            return 0;
+        }
+
+        assert assignee != null;
+        if(!mission.assignee.equals(assignee.getUuid())) {
+            feedback(
+                    "This isn't your assigned mission",
+                    commandContext.getSource()
+            );
+            return 0;
+        }
+
+        CurrentMissionsHolder.finishMission(assigned);
+
+        StateSaverAndLoader
+                .getServerState(
+                        commandContext.getSource().getServer()
+                )
+                .assignedMissions
+                .removeIf(assignedMission -> {
+                    return assignedMission.id.equals(mission.id);
+                });
+
+        return 1;
+    }
+
     public static void initialize() {
         CommandRegistrationCallback.EVENT.register(
                 (commandDispatcher, commandRegistryAccess, registrationEnvironment) ->
                         commandDispatcher.register(
-                                literal("missionsAdmin")
+                                literal("missions-admin")
                                         .requires(source -> source.hasPermissionLevel(2))
                                         .executes(MissionCommands::base)
                                         .then(literal("show")
@@ -308,6 +399,17 @@ public class MissionCommands {
                                                         )
                                                 )
                                         )
+                                        .then(literal("create-assigned")
+                                                .then(argument("name", StringArgumentType.string())
+                                                        .then(argument("description", StringArgumentType.string())
+                                                                .then(argument("reward", IntegerArgumentType.integer(0))
+                                                                        .then(argument("assignee", EntityArgumentType.players())
+                                                                                .executes(MissionCommands::createAssignedMission)
+                                                                        )
+                                                                )
+                                                        )
+                                                )
+                                        )
                         )
         );
 
@@ -336,8 +438,20 @@ public class MissionCommands {
                                                         .executes(MissionCommands::witnessPlayer)
                                                 )
                                         )
-                                        .then(literal("showBound")
+                                        .then(literal("show-bound")
                                                 .executes(MissionCommands::getBoundMissions)
+                                        )
+                        )
+        );
+
+        CommandRegistrationCallback.EVENT.register(
+                (commandDispatcher, commandRegistryAccess, registrationEnvironment) ->
+                        commandDispatcher.register(
+                                literal("missions-assignee")
+                                        .then(literal("reward")
+                                                .then(argument("player", EntityArgumentType.player())
+                                                        .executes(MissionCommands::rewardAssignedMission)
+                                                )
                                         )
                         )
         );

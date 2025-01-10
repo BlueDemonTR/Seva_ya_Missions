@@ -2,11 +2,7 @@ package poyoraz.seva_ya;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.brigadier.context.CommandContext;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
 import poyoraz.seva_ya.config.MissionsConfig;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
@@ -15,10 +11,16 @@ import poyoraz.seva_ya.models.PlayerData;
 import java.util.*;
 
 public class GlobalMissionHolder {
-    public static ArrayList<Mission> missions = new ArrayList<>();
+    private static final ArrayList<Mission> configMissions = new ArrayList<>();
 
-    public static ArrayList<Mission> getMissions() {
-        return missions;
+    public static ArrayList<Mission> getMissions(MinecraftServer server) {
+        ArrayList<Mission> allMissions = new ArrayList<>(configMissions);
+
+        allMissions.addAll(
+                StateSaverAndLoader.getServerState(server).assignedMissions
+        );
+
+        return allMissions;
     }
 
     public static void parseMissions() {
@@ -26,7 +28,7 @@ public class GlobalMissionHolder {
             try {
                 JsonObject json = (JsonObject) JsonParser.parseString(jsonString);
 
-                missions.add(
+                configMissions.add(
                         new Mission(
                                 json.get("id").getAsString(),
                                 json.get("name").getAsString(),
@@ -42,10 +44,14 @@ public class GlobalMissionHolder {
         });
     }
 
-    public static ArrayList<Mission> getMissionsByDifficulty(MissionType type) {
+    public static ArrayList<Mission> getMissionsByDifficulty(MissionType type, MinecraftServer server) {
+        if(type == MissionType.ASSIGNED) {
+            return new ArrayList<Mission>(StateSaverAndLoader.getServerState(server).assignedMissions);
+        }
+
         ArrayList<Mission> filtered = new ArrayList<>();
 
-        missions.forEach((mission) -> {
+        configMissions.forEach((mission) -> {
             if(mission.type == type) {
                 filtered.add(mission);
             }
@@ -56,9 +62,9 @@ public class GlobalMissionHolder {
 
     public static ArrayList<Mission> getAvailableMissionsByDifficulty(MissionType type, MinecraftServer server) {
         try {
-            ArrayList<Mission> ret = new ArrayList<Mission>(getMissionsByDifficulty(type).stream().filter(mission -> {
+            return new ArrayList<Mission>(getMissionsByDifficulty(type, server).stream().filter(mission -> {
                 switch (mission.type) {
-                    case EASY, MEDIUM, HARD -> {
+                    case EASY, MEDIUM, HARD, ASSIGNED -> {
                         return true;
                     }
                     case ETERNAL -> {
@@ -69,8 +75,6 @@ public class GlobalMissionHolder {
                     }
                 }
             }).toList());
-            Seva_ya_Missions.LOGGER.info("pebis2");
-            return ret;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -98,15 +102,22 @@ public class GlobalMissionHolder {
         return false;
     }
 
-    public static Mission getMissionById(String id) {
-        for (Mission mission : missions) {
+    public static Mission getMissionById(String id, MinecraftServer server) {
+        for (Mission mission : getMissions(server)) {
             if (mission.id.equals(id)) return mission;
         }
         return null;
     }
 
-    public static Mission getMissionByName(String name) {
-        for (Mission mission : missions) {
+    public static Mission getMissionById(String id) {
+        for (Mission mission : configMissions) {
+            if (mission.id.equals(id)) return mission;
+        }
+        return null;
+    }
+
+    public static Mission getMissionByName(String name, MinecraftServer server) {
+        for (Mission mission : getMissions(server)) {
             if (mission.name.equals(name)) return mission;
         }
         return null;

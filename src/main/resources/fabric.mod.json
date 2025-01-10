@@ -20,11 +20,7 @@
 		]
 	},
 	"mixins": [
-		"seva_ya_missions.mixins.json",
-		{
-			"config": "seva_ya_missions.client.mixins.json",
-			"environment": "client"
-		}
+		"seva_ya_missions.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.16.10",

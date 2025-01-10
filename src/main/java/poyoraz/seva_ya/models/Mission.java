@@ -1,11 +1,16 @@
 package poyoraz.seva_ya.models;
 
+import net.minecraft.entity.player.PlayerEntity;
+
+import java.util.UUID;
+
 public class Mission {
     public String id;
     public String name;
     public String description;
     public MissionType type;
     public int reward;
+    public UUID assignee = null;
 
     public Mission(String id, String name, String description, MissionType type, int reward) {
         this.id = id;

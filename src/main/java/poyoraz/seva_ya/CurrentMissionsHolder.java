@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import poyoraz.seva_ya.config.MissionsConfig;
+import poyoraz.seva_ya.models.AssignedMission;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
 import poyoraz.seva_ya.models.PlayerData;
@@ -16,7 +17,7 @@ import java.util.ArrayList;
 
 public class CurrentMissionsHolder {
     private static ArrayList<Mission> missions = new ArrayList<>();
-    private static boolean missionsCached = false;
+    public static boolean missionsCached = false;
 
     public static ArrayList<Mission> getMissions(MinecraftServer server) {
         if(missionsCached) return missions;
@@ -26,9 +27,11 @@ public class CurrentMissionsHolder {
         ArrayList<Mission> _missions = new ArrayList<>();
 
         ids.forEach(( id ) -> {
-            Mission mission = GlobalMissionHolder.getMissionById(id);
+            Mission mission = GlobalMissionHolder.getMissionById(id, server);
             if(mission != null) _missions.add(mission);
         });
+
+        _missions.addAll(StateSaverAndLoader.getServerState(server).assignedMissions);
 
         missions = _missions;
         missionsCached = true;
@@ -86,7 +89,7 @@ public class CurrentMissionsHolder {
         missionsCached = false;
     }
 
-    private static void removeMissionFromWeekly(Mission mission, MinecraftServer server) {
+    private static void removeMissionFromCurrent(Mission mission, MinecraftServer server) {
         StateSaverAndLoader stateSaver = StateSaverAndLoader.getServerState(server);
 
         stateSaver.currentMissions.remove(mission.id);
@@ -125,7 +128,7 @@ public class CurrentMissionsHolder {
         );
 
         player.giveOrDropStack(reward);
-        removeMissionFromWeekly(mission, player.getServer());
+        removeMissionFromCurrent(mission, player.getServer());
     }
 
     public static int checkForCompletion(LivingEntity player) {
@@ -149,8 +152,25 @@ public class CurrentMissionsHolder {
                 witnessCount = 2;
             }
             case ETERNAL -> {
+                if (playerData.boundMissions.contains(mission)) {
+                    return 1;
+                }
+
                 ((PlayerEntity) player).sendMessage(Text.of("This is an eternal mission, an admin needs to bind it to you."), false);
-                return playerData.boundMissions.contains(mission) ? 1 : 0;
+                return 0;
+            }
+            case ASSIGNED -> {
+                assert server != null;
+                ((PlayerEntity) player)
+                        .sendMessage(
+                                Text.of(
+                                        "This is an assigned mission, "
+                                                + AssignedMission.getPlayerNameFromAssignedMission(server, mission.assignee)
+                                                + " will need to reward you when both of you are online."
+                                ),
+                                false
+                        );
+                return 0;
             }
             default -> {
                 return 0;
@@ -177,15 +197,15 @@ public class CurrentMissionsHolder {
         return 1;
     }
 
-    public static Mission getMissionByName(String name) {
-        for (Mission mission : missions) {
+    public static Mission getMissionByName(String name, MinecraftServer server) {
+        for (Mission mission : getMissions(server)) {
             if (mission.name.equals(name)) return mission;
         }
         return null;
     }
 
-    public static Mission getMissionById(String id) {
-        for (Mission mission : missions) {
+    public static Mission getMissionById(String id, MinecraftServer server) {
+        for (Mission mission : getMissions(server)) {
             if (mission.id.equals(id)) return mission;
         }
         return null;

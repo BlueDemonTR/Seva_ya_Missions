@@ -19,7 +19,7 @@ public class GlobalMissionSuggester extends AbstractMissionSuggester {
             CommandContext<ServerCommandSource> commandContext,
             SuggestionsBuilder suggestionsBuilder
     ) throws CommandSyntaxException {
-        suggestMissions(GlobalMissionHolder.getMissions(), suggestionsBuilder);
+        suggestMissions(GlobalMissionHolder.getMissions(commandContext.getSource().getServer()), suggestionsBuilder);
 
         return suggestionsBuilder.buildFuture();
     }

@@ -7,7 +7,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.World;
+import poyoraz.seva_ya.models.AssignedMission;
 import poyoraz.seva_ya.models.Mission;
+import poyoraz.seva_ya.models.MissionType;
 import poyoraz.seva_ya.models.PlayerData;
 
 import java.util.*;
@@ -16,6 +18,7 @@ public class StateSaverAndLoader extends PersistentState {
 
     public ArrayList<String> currentMissions = new ArrayList<>();
     public HashMap<UUID, PlayerData> players = new HashMap<>();
+    public ArrayList<AssignedMission> assignedMissions = new ArrayList<>();
 
     private static final Type<StateSaverAndLoader> type = new Type<>(
             StateSaverAndLoader::new, // If there's no 'StateSaverAndLoader' yet create one
@@ -46,11 +49,15 @@ public class StateSaverAndLoader extends PersistentState {
 
         return state;
     }
-
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
         NbtCompound nbtCompound = new NbtCompound();
         putStringArray(nbtCompound, currentMissions);
+        nbt.put("currentMissions", nbtCompound);
+
+        NbtCompound assignedMissions = new NbtCompound();
+        putAssignedMissionArray(assignedMissions, this.assignedMissions);
+        nbt.put("assignedMissions", assignedMissions);
 
         NbtCompound playersNbt = new NbtCompound();
         players.forEach((uuid, playerData) -> {
@@ -74,39 +81,17 @@ public class StateSaverAndLoader extends PersistentState {
             playersNbt.put(uuid.toString(), playerNbt);
         });
         nbt.put("playersNbt", playersNbt);
-
-        nbt.put("currentMissions", nbtCompound);
         return nbt;
     }
 
-    public static PlayerData getPlayerState(LivingEntity player) {
-        StateSaverAndLoader serverState = getServerState(Objects.requireNonNull(player.getWorld().getServer()));
-
-        // Either get the player by the uuid, or we don't have data for them yet, make a new player state
-        return serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
-    }
-
-    public static void putStringArray(NbtCompound nbtCompound, List<?> array) {
-        for (int i = 0; i < array.size(); i++) {
-            nbtCompound.putString(String.valueOf(i),  array.get(i).toString());
-        }
-    }
-
-    public static ArrayList<String> getStringArray(NbtCompound nbtCompound) {
-        ArrayList<String> curr = new ArrayList<>();
-        nbtCompound.getKeys().forEach(key -> {
-            curr.add(nbtCompound.getString(key));
-        });
-        return curr;
-    }
-
-
-    public static StateSaverAndLoader createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
+    public static StateSaverAndLoader createFromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup){
         StateSaverAndLoader state = new StateSaverAndLoader();
 
         NbtCompound missions = tag.getCompound("currentMissions");
 
         state.currentMissions = getStringArray(missions);
+
+        state.assignedMissions = getAssignedMissionArray(tag.getCompound("assignedMissions"));
 
         NbtCompound playersNbt = tag.getCompound("playersNbt");
         playersNbt.getKeys().forEach(key -> {
@@ -116,7 +101,7 @@ public class StateSaverAndLoader extends PersistentState {
             playerData.missionsPulled = playerNbt.getBoolean("missionsPulled");
             UUID uuid = UUID.fromString(key);
 
-            playerData.tryingToComplete = GlobalMissionHolder.getMissionByName(playerNbt.getString("tryingToComplete"));
+            playerData.tryingToComplete = GlobalMissionHolder.getMissionById(playerNbt.getString("tryingToComplete"));
 
             playerData.witnesses = new ArrayList<UUID>(
                     getStringArray(playerNbt.getCompound("witnesses"))
@@ -136,5 +121,92 @@ public class StateSaverAndLoader extends PersistentState {
         });
 
         return state;
+    }
+
+    public static PlayerData getPlayerState(LivingEntity player) {
+        StateSaverAndLoader serverState = getServerState(Objects.requireNonNull(player.getWorld().getServer()));
+
+        // Either get the player by the uuid, or we don't have data for them yet, make a new player state
+        return serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
+    }
+
+    private static void putStringArray(NbtCompound nbtCompound, List<?> array) {
+        for (int i = 0; i < array.size(); i++) {
+            nbtCompound.putString(String.valueOf(i),  array.get(i).toString());
+        }
+    }
+
+    private static ArrayList<String> getStringArray(NbtCompound nbtCompound) {
+        ArrayList<String> curr = new ArrayList<>();
+        nbtCompound.getKeys().forEach(key -> {
+            curr.add(nbtCompound.getString(key));
+        });
+        return curr;
+    }
+
+    private static ArrayList<Mission> getMissionArray(NbtCompound nbtCompound) {
+        ArrayList<Mission> curr = new ArrayList<>();
+
+        nbtCompound.getKeys().forEach(key -> {
+            NbtCompound missionData = nbtCompound.getCompound(key);
+
+            curr.add(new Mission(
+                    missionData.getString("id"),
+                    missionData.getString("name"),
+                    missionData.getString("description"),
+                    MissionType.valueOf(missionData.getString("type")),
+                    missionData.getInt("reward")
+            ));
+        });
+
+        return curr;
+    }
+
+    private static void putMissionArray(NbtCompound nbtCompound, List<Mission> array) {
+        for (int i = 0; i < array.size(); i++) {
+            Mission mission = array.get(i);
+
+            NbtCompound missionData = new NbtCompound();
+            missionData.putString("name", mission.name);
+            missionData.putString("id", mission.id);
+            missionData.putString("description", mission.description);
+            missionData.putInt("reward", mission.reward);
+            missionData.putString("type", mission.type.name());
+
+            nbtCompound.put(String.valueOf(i), missionData);
+        }
+    }
+
+    private static ArrayList<AssignedMission> getAssignedMissionArray(NbtCompound nbtCompound) {
+        ArrayList<AssignedMission> curr = new ArrayList<>();
+
+        nbtCompound.getKeys().forEach(key -> {
+            NbtCompound missionData = nbtCompound.getCompound(key);
+
+            curr.add(new AssignedMission(
+                    missionData.getString("id"),
+                    missionData.getString("name"),
+                    missionData.getString("description"),
+                    missionData.getInt("reward"),
+                    UUID.fromString(missionData.getString("assignee"))
+            ));
+        });
+
+        return curr;
+    }
+
+    private static void putAssignedMissionArray(NbtCompound nbtCompound, List<AssignedMission> array) {
+        for (int i = 0; i < array.size(); i++) {
+            AssignedMission mission = array.get(i);
+
+            NbtCompound missionData = new NbtCompound();
+            missionData.putString("name", mission.name);
+            missionData.putString("id", mission.id);
+            missionData.putString("description", mission.description);
+            missionData.putInt("reward", mission.reward);
+            missionData.putString("assignee", mission.assignee.toString());
+
+            nbtCompound.put(String.valueOf(i), missionData);
+        }
     }
 }
