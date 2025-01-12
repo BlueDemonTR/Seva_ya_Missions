@@ -36,6 +36,18 @@ public class CurrentMissionsHolder {
         return _missions;
     }
 
+    public static ArrayList<Mission> getMissionsByDifficulty(MissionType type, MinecraftServer server) {
+        ArrayList<Mission> filtered = new ArrayList<>();
+
+        getMissions(server).forEach((mission) -> {
+            if(mission.type == type) {
+                filtered.add(mission);
+            }
+        });
+
+        return filtered;
+    }
+
     public static void rerollMissions(MinecraftServer server) {
         StateSaverAndLoader stateSaver = StateSaverAndLoader.getServerState(server);
 

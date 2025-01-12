@@ -3,12 +3,14 @@ package poyoraz.seva_ya;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Text;
 import poyoraz.seva_ya.models.AssignedMission;
 import poyoraz.seva_ya.models.Mission;
@@ -16,7 +18,10 @@ import poyoraz.seva_ya.models.MissionType;
 import poyoraz.seva_ya.models.PlayerData;
 import poyoraz.seva_ya.suggesters.CurrentMissionSuggester;
 import poyoraz.seva_ya.suggesters.EternalMissionSuggester;
+import poyoraz.seva_ya.suggesters.GlobalMissionSuggester;
+import poyoraz.seva_ya.suggesters.MissionTypeSuggester;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -36,22 +41,66 @@ public class MissionCommands {
     }
 
     public static int getAllMissions(CommandContext<ServerCommandSource> commandContext) {
-        feedback(
-                GlobalMissionHolder.getMissionsAsText(
-                        GlobalMissionHolder.getMissions(commandContext.getSource().getServer())
-                ),
-                commandContext.getSource()
+        MissionType type = null;
+
+        try {
+            String typeString = StringArgumentType.getString(commandContext, "mission_type");
+
+            if (!typeString.isEmpty()) {
+                type = MissionType.valueOf(typeString);
+            }
+        } catch (Exception ignored) {
+        }
+
+        ArrayList<Mission> missions = type == null
+                ? GlobalMissionHolder.getMissions(commandContext.getSource().getServer())
+                : GlobalMissionHolder.getMissionsByDifficulty(type, commandContext.getSource().getServer());
+
+        MissionMenu.create(
+                missions,
+                text -> {
+                    feedback(text, commandContext.getSource());
+                    return null;
+                },
+                missionType -> {
+                    return new ClickEvent(
+                            ClickEvent.Action.SUGGEST_COMMAND,
+                            "/missions-admin showAll " + missionType.name()
+                    );
+                }
         );
 
         return 1;
     }
 
     public static int getCurrentMissions(CommandContext<ServerCommandSource> commandContext) {
-        feedback(
-                GlobalMissionHolder.getMissionsAsText(
-                        CurrentMissionsHolder.getMissions(commandContext.getSource().getServer())
-                ),
-                commandContext.getSource()
+        MissionType type = null;
+
+        try {
+            String typeString = StringArgumentType.getString(commandContext, "mission_type");
+
+            if(!typeString.isEmpty()) {
+                type = MissionType.valueOf(typeString);
+            }
+        } catch (Exception ignored) {
+        }
+
+        ArrayList<Mission> missions = type == null
+                ? CurrentMissionsHolder.getMissions(commandContext.getSource().getServer())
+                : CurrentMissionsHolder.getMissionsByDifficulty(type, commandContext.getSource().getServer());
+
+        MissionMenu.create(
+                missions,
+                text -> {
+                    feedback(text, commandContext.getSource());
+                    return null;
+                },
+                missionType -> {
+                    return new ClickEvent(
+                            ClickEvent.Action.SUGGEST_COMMAND,
+                            "/missions-admin show " + missionType.name()
+                    );
+                }
         );
 
         return 1;
@@ -364,6 +413,7 @@ public class MissionCommands {
     }
 
     public static void initialize() {
+
         CommandRegistrationCallback.EVENT.register(
                 (commandDispatcher, commandRegistryAccess, registrationEnvironment) ->
                         commandDispatcher.register(
@@ -372,9 +422,17 @@ public class MissionCommands {
                                         .executes(MissionCommands::base)
                                         .then(literal("show")
                                                 .executes(MissionCommands::getCurrentMissions)
+                                                .then(argument("mission_type", StringArgumentType.string())
+                                                        .suggests(new MissionTypeSuggester())
+                                                        .executes(MissionCommands::getCurrentMissions)
+                                                )
                                         )
                                         .then(literal("showAll")
                                                 .executes(MissionCommands::getAllMissions)
+                                                .then(argument("mission_type", StringArgumentType.string())
+                                                        .suggests(new MissionTypeSuggester())
+                                                        .executes(MissionCommands::getCurrentMissions)
+                                                )
                                         )
                                         .then(literal("reroll")
                                                 .executes(MissionCommands::rerollMissions)
@@ -392,13 +450,7 @@ public class MissionCommands {
                                         .then(literal("unbind")
                                                 .then(argument("player", EntityArgumentType.players())
                                                         .then(argument("mission_name", StringArgumentType.string())
-                                                                .suggests((commandContext, suggestionsBuilder) -> {
-                                                                    return (new EternalMissionSuggester())
-                                                                            .getSuggestions(
-                                                                                    commandContext,
-                                                                                    suggestionsBuilder
-                                                                            );
-                                                                })
+                                                                .suggests(new EternalMissionSuggester())
                                                                 .executes(MissionCommands::unbindEternalMission)
                                                         )
                                                 )
@@ -423,16 +475,14 @@ public class MissionCommands {
                                 literal("missions")
                                         .then(literal("get")
                                                 .executes(MissionCommands::getWeeklyMissions)
+                                                .then(argument("mission_type", StringArgumentType.string())
+                                                        .suggests(new MissionTypeSuggester())
+                                                        .executes(MissionCommands::getCurrentMissions)
+                                                )
                                         )
                                         .then(literal("finish")
                                                 .then(argument("mission_name", StringArgumentType.string())
-                                                        .suggests((commandContext, suggestionsBuilder) -> {
-                                                            return (new CurrentMissionSuggester())
-                                                                    .getSuggestions(
-                                                                            commandContext,
-                                                                            suggestionsBuilder
-                                                                    );
-                                                        })
+                                                        .suggests(new CurrentMissionSuggester())
                                                         .executes(MissionCommands::attemptCompleteMission)
 
                                                 )
