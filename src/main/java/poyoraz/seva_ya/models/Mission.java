@@ -9,6 +9,7 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import org.apache.commons.compress.utils.Lists;
 import poyoraz.seva_ya.config.MissionsConfig;
 
 import java.util.ArrayList;
@@ -22,6 +23,8 @@ public class Mission {
     public MissionType type;
     public int reward;
     public UUID assignee = null;
+
+    public ArrayList<ItemStack> cachedRewards = null;
 
     public Mission(String id, String name, String description, MissionType type, int reward) {
         this.id = id;
@@ -88,19 +91,36 @@ public class Mission {
                         )
         );
 
+        ArrayList<ItemStack> rewards = getRewards();
 
-        // TODO: Finish this, it should look like [Easy] MISSION NAME: 1+3+2
+        MutableText rewardsText = Text.literal("");
 
-        MutableText rewards = Text.literal("Rewards");
+        for (ItemStack reward : rewards) {
+            MutableText rewardText = Text.literal(String.valueOf(reward.getCount()));
+            if(!reward.equals(rewards.getLast())) {
+                rewardText.append("+");
+            }
+
+            rewardsText.append(rewardText);
+        }
+
+        rewardsText.setStyle(
+                rewardsText
+                        .getStyle()
+                        .withHoverEvent(
+                                new HoverEvent(
+                                        HoverEvent.Action.SHOW_TEXT, getRewardText()
+                                )
+                        )
+        );
 
         return Text
                 .literal("")
-                .append(
-                        getTypeLabel()
-                )
+                .append(getTypeLabel())
+                .append(" ")
                 .append(nameText)
                 .append(": ")
-                .append(getRewardText());
+                .append(rewardsText);
     }
 
     @Override
@@ -109,6 +129,8 @@ public class Mission {
     }
 
     public ArrayList<ItemStack> getRewards() {
+        if(cachedRewards != null) return cachedRewards;
+
         ArrayList<ItemStack> rewards = new ArrayList<>();
 
         int remainingAwards = reward;
@@ -133,11 +155,12 @@ public class Mission {
             );
         }
 
+        cachedRewards = rewards;
         return rewards;
     }
 
-    public String getRewardText() {
-        StringBuilder str = new StringBuilder();
+    public Text getRewardText() {
+        MutableText str = Text.literal("");
 
         ArrayList<ItemStack> rewards = getRewards();
 
@@ -146,21 +169,26 @@ public class Mission {
 
             if(count == 0) continue;
 
-            str.append(count);
+            str.append(String.valueOf(count));
             str.append(" ");
             str.append(reward.getName().getString());
-            str.append(count != 1 ? "s, " : ", ");
+            str.append(count != 1 ? "s" : "");
+
+            if(!reward.equals(rewards.getLast())) {
+                str.append(", ");
+            }
         }
 
-        str.delete(str.length() - 2, str.length());
-
-        return str.toString();
+        return str;
     }
 
     public void rewardPlayer(PlayerEntity player) {
-        player.sendMessage(Text.of(
-                        "You have completed the mission successfully! You get " + getRewardText()
-                ),
+        player.sendMessage(
+                Text
+                        .literal(
+                            "You have completed the mission successfully! You get "
+                        )
+                        .append(getRewardText()),
                 false
         );
 

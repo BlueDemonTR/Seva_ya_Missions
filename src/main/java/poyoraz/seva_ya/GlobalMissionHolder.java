@@ -27,6 +27,8 @@ public class GlobalMissionHolder {
 
     public static void parseMissions() {
         MissionsConfig.allTasks.forEach((jsonString) -> {
+            if(jsonString.isEmpty()) return;
+
             try {
                 JsonObject json = (JsonObject) JsonParser.parseString(jsonString);
 
