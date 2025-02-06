@@ -3,7 +3,7 @@
 	"id": "seva_ya_missions",
 	"version": "${version}",
 	"name": "Seva_ya_Missions",
-	"description": "A mod that allows the creation of missions, that can be created dynamically, bound and be assigned. Has no automatic checks",
+	"description": "A mod that allows the creation of missions, that can be created dynamically, bound and be assigned.",
 	"authors": [
 		"Poyoraz"
 	],
@@ -19,9 +19,7 @@
 			"poyoraz.seva_ya.Seva_ya_Missions"
 		]
 	},
-	"mixins": [
-		"seva_ya_missions.mixins.json"
-	],
+	"mixins": [],
 	"depends": {
 		"fabricloader": ">=0.16.10",
 		"minecraft": "~1.21.4",

@@ -22,6 +22,6 @@ public class Seva_ya_Missions implements ModInitializer {
 		MissionCommands.initialize();
 		GlobalMissionHolder.parseMissions();
 
-		StaticInstance = this;
+		LOGGER.info("Seva ya Missions Ready!");
 	}
 }
