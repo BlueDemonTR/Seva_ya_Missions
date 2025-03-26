@@ -67,6 +67,12 @@ public class MissionCommands {
                             ClickEvent.Action.SUGGEST_COMMAND,
                             "/missions-admin showAll " + missionType.name()
                     );
+                },
+                mission -> {
+                    return new ClickEvent(
+                            ClickEvent.Action.SUGGEST_COMMAND,
+                            "/missions finish \"" + mission.name + "\""
+                    );
                 }
         );
 
@@ -98,7 +104,13 @@ public class MissionCommands {
                 missionType -> {
                     return new ClickEvent(
                             ClickEvent.Action.SUGGEST_COMMAND,
-                            "/missions-admin show " + missionType.name()
+                            "/missions show " + missionType.name()
+                    );
+                },
+                mission -> {
+                    return new ClickEvent(
+                            ClickEvent.Action.SUGGEST_COMMAND,
+                            "/missions finish \"" + mission.name + "\""
                     );
                 }
         );
@@ -243,7 +255,7 @@ public class MissionCommands {
     }
 
     public static int bindEternalMission(CommandContext<ServerCommandSource> commandContext) {
-        LivingEntity missionOwner;
+        PlayerEntity missionOwner;
 
         try {
             missionOwner = EntityArgumentType.getPlayer(commandContext, "player");
@@ -279,6 +291,13 @@ public class MissionCommands {
         feedback(
                 "Bound player to eternal mission: " + playerData.tryingToComplete.name,
                 commandContext.getSource()
+        );
+        missionOwner.sendMessage(
+                Text
+                        .literal("You have been bound to the eternal mission ")
+                        .append(playerData.tryingToComplete.name)
+                        .append(". Run the complete command again to get your reward."),
+                false
         );
 
         playerData.boundMissions.add(playerData.tryingToComplete);
@@ -412,8 +431,78 @@ public class MissionCommands {
         return 1;
     }
 
-    public static void initialize() {
+    private static boolean isOverseer(ServerCommandSource serverCommandSource) {
+        StateSaverAndLoader stateSaverAndLoader = StateSaverAndLoader.getServerState(serverCommandSource.getServer());
 
+        return stateSaverAndLoader.overseers.contains(Objects.requireNonNull(serverCommandSource.getPlayer()).getUuid());
+    }
+
+    private static int assignOverseer(CommandContext<ServerCommandSource> commandContext) {
+        PlayerEntity player;
+
+        try {
+            player = EntityArgumentType.getPlayer(commandContext, "player");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        if(player == null) {
+            feedback("No such player exists", commandContext.getSource());
+
+            return 0;
+        }
+
+        StateSaverAndLoader stateSaverAndLoader = StateSaverAndLoader.getServerState(commandContext.getSource().getServer());
+
+        if(stateSaverAndLoader.overseers.contains(player.getUuid())) {
+            feedback("Player is already an overseer", commandContext.getSource());
+
+            return 0;
+        }
+
+        stateSaverAndLoader.overseers.add(player.getUuid());
+        feedback("Player is now an overseer, they might need to relog for autocomplete to work properly", commandContext.getSource());
+        player.sendMessage(
+                Text.literal("You are now an overseer, relog for autocomplete to work properly"),
+                false
+        );
+
+        return 1;
+    }
+
+    private static int unassignOverseer(CommandContext<ServerCommandSource> commandContext) {
+        PlayerEntity player;
+
+        try {
+            player = EntityArgumentType.getPlayer(commandContext, "player");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        if(player == null) {
+            feedback("No such player exists", commandContext.getSource());
+
+            return 0;
+        }
+
+        StateSaverAndLoader stateSaverAndLoader = StateSaverAndLoader.getServerState(commandContext.getSource().getServer());
+
+        if(!stateSaverAndLoader.overseers.contains(player.getUuid())) {
+            feedback("Player isn't an overseer", commandContext.getSource());
+
+            return 0;
+        }
+
+        stateSaverAndLoader.overseers.remove(player.getUuid());
+        feedback("Player is no longer an overseer", commandContext.getSource());
+        player.sendMessage(
+                Text.literal("You are no longer an overseer, relog for autocomplete to work properly"),
+                false
+        );
+        return 1;
+    }
+
+    public static void initialize() {
         CommandRegistrationCallback.EVENT.register(
                 (commandDispatcher, commandRegistryAccess, registrationEnvironment) ->
                         commandDispatcher.register(
@@ -438,17 +527,17 @@ public class MissionCommands {
                                                 .executes(MissionCommands::rerollMissions)
                                         )
                                         .then(literal("grant")
-                                                .then(argument("player", EntityArgumentType.players())
+                                                .then(argument("player", EntityArgumentType.player())
                                                         .executes(MissionCommands::grantMissions)
                                                 )
                                         )
                                         .then(literal("bind")
-                                                .then(argument("player", EntityArgumentType.players())
+                                                .then(argument("player", EntityArgumentType.player())
                                                         .executes(MissionCommands::bindEternalMission)
                                                 )
                                         )
                                         .then(literal("unbind")
-                                                .then(argument("player", EntityArgumentType.players())
+                                                .then(argument("player", EntityArgumentType.player())
                                                         .then(argument("mission_name", StringArgumentType.string())
                                                                 .suggests(new EternalMissionSuggester())
                                                                 .executes(MissionCommands::unbindEternalMission)
@@ -459,7 +548,46 @@ public class MissionCommands {
                                                 .then(argument("name", StringArgumentType.string())
                                                         .then(argument("description", StringArgumentType.string())
                                                                 .then(argument("reward", IntegerArgumentType.integer(0))
-                                                                        .then(argument("assignee", EntityArgumentType.players())
+                                                                        .then(argument("assignee", EntityArgumentType.player())
+                                                                                .executes(MissionCommands::createAssignedMission)
+                                                                        )
+                                                                )
+                                                        )
+                                                )
+                                        )
+                                        .then(literal("assign-overseer")
+                                                .then(argument("player", EntityArgumentType.player())
+                                                        .executes(MissionCommands::assignOverseer)))
+                                        .then(literal("unassign-overseer")
+                                                .then(argument("player", EntityArgumentType.player())
+                                                        .executes(MissionCommands::unassignOverseer)))
+                        )
+        );
+
+        CommandRegistrationCallback.EVENT.register(
+                (commandDispatcher, commandRegistryAccess, registrationEnvironment) ->
+                        commandDispatcher.register(
+                                literal("missions-overseer")
+                                        .requires(MissionCommands::isOverseer)
+                                        .executes(MissionCommands::base)
+                                        .then(literal("bind")
+                                                .then(argument("player", EntityArgumentType.player())
+                                                        .executes(MissionCommands::bindEternalMission)
+                                                )
+                                        )
+                                        .then(literal("unbind")
+                                                .then(argument("player", EntityArgumentType.player())
+                                                        .then(argument("mission_name", StringArgumentType.string())
+                                                                .suggests(new EternalMissionSuggester())
+                                                                .executes(MissionCommands::unbindEternalMission)
+                                                        )
+                                                )
+                                        )
+                                        .then(literal("create-assigned")
+                                                .then(argument("name", StringArgumentType.string())
+                                                        .then(argument("description", StringArgumentType.string())
+                                                                .then(argument("reward", IntegerArgumentType.integer(0))
+                                                                        .then(argument("assignee", EntityArgumentType.player())
                                                                                 .executes(MissionCommands::createAssignedMission)
                                                                         )
                                                                 )
@@ -473,6 +601,7 @@ public class MissionCommands {
                 (commandDispatcher, commandRegistryAccess, registrationEnvironment) ->
                         commandDispatcher.register(
                                 literal("missions")
+                                        .executes(MissionCommands::getWeeklyMissions)
                                         .then(literal("get")
                                                 .executes(MissionCommands::getWeeklyMissions)
                                                 .then(argument("mission_type", StringArgumentType.string())
@@ -488,7 +617,7 @@ public class MissionCommands {
                                                 )
                                         )
                                         .then(literal("witness")
-                                                .then(argument("player", EntityArgumentType.players())
+                                                .then(argument("player", EntityArgumentType.player())
                                                         .executes(MissionCommands::witnessPlayer)
                                                 )
                                         )

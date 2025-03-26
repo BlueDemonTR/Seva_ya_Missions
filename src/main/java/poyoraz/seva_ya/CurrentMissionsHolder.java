@@ -175,7 +175,7 @@ public class CurrentMissionsHolder {
             assert server != null;
             server.getCommandManager().executeWithPrefix(
                     server.getCommandSource(),
-                    "/say @a "
+                    "/say "
                             + player.getName().getString()
                             + " is trying to complete the mission: "
                             + mission.name

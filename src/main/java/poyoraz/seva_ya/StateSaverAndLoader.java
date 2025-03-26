@@ -19,6 +19,7 @@ public class StateSaverAndLoader extends PersistentState {
     public ArrayList<String> currentMissions = new ArrayList<>();
     public HashMap<UUID, PlayerData> players = new HashMap<>();
     public ArrayList<AssignedMission> assignedMissions = new ArrayList<>();
+    public ArrayList<UUID> overseers = new ArrayList<>();
 
     private static final Type<StateSaverAndLoader> type = new Type<>(
             StateSaverAndLoader::new, // If there's no 'StateSaverAndLoader' yet create one
@@ -59,6 +60,10 @@ public class StateSaverAndLoader extends PersistentState {
         putAssignedMissionArray(assignedMissions, this.assignedMissions);
         nbt.put("assignedMissions", assignedMissions);
 
+        NbtCompound overseers = new NbtCompound();
+        putStringArray(overseers, this.overseers);
+        nbt.put("overseers", overseers);
+
         NbtCompound playersNbt = new NbtCompound();
         players.forEach((uuid, playerData) -> {
             NbtCompound playerNbt = new NbtCompound();
@@ -92,6 +97,10 @@ public class StateSaverAndLoader extends PersistentState {
         state.currentMissions = getStringArray(missions);
 
         state.assignedMissions = getAssignedMissionArray(tag.getCompound("assignedMissions"));
+
+        state.overseers = new ArrayList<>();
+        getStringArray(tag.getCompound("overseers"))
+                .forEach(string -> state.overseers.add(UUID.fromString(string)));
 
         NbtCompound playersNbt = tag.getCompound("playersNbt");
         playersNbt.getKeys().forEach(key -> {

@@ -24,6 +24,7 @@ public class CurrentMissionSuggester extends AbstractMissionSuggester {
     ) throws CommandSyntaxException {
         LivingEntity player = commandContext.getSource().getPlayer();
 
+
         assert player != null;
         PlayerData playerData = StateSaverAndLoader.getPlayerState(player);
 

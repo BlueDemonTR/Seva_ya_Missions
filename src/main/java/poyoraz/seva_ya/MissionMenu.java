@@ -1,8 +1,7 @@
 package poyoraz.seva_ya;
 
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
+import net.minecraft.text.*;
+import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.NotNull;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
@@ -14,7 +13,8 @@ public class MissionMenu {
     public static void create(
             ArrayList<Mission> missions,
             Function<Text, Void> feedbackCallback,
-            Function<MissionType, ClickEvent> typeClickCallback
+            Function<MissionType, ClickEvent> typeClickCallback,
+            Function<Mission, ClickEvent> completeCallback
     ) {
         Set<MissionType> missionTypes = getMissionTypes(missions);
 
@@ -24,10 +24,46 @@ public class MissionMenu {
         }
 
         if(missionTypes.size() == 1) {
-            feedbackCallback.apply(GlobalMissionHolder.getMissionsAsText(missions));
+            createMissionScreen(missions, feedbackCallback, completeCallback);
             return;
         }
 
+        createTypeScreen(missionTypes, feedbackCallback, typeClickCallback);
+    }
+
+    private static void createMissionScreen(
+            ArrayList<Mission> missions,
+            Function<Text, Void> feedbackCallback,
+            Function<Mission, ClickEvent> completeCallback
+    ) {
+        MutableText text = Text.literal("");
+
+        missions.forEach(mission -> {
+            MutableText missionText = (MutableText) mission.toText();
+
+            MutableText finishButton = Text.literal("[Finish]");
+            finishButton.setStyle(finishButton
+                    .getStyle()
+                    .withColor(Formatting.BLUE)
+                    .withClickEvent(completeCallback.apply(mission))
+            );
+
+            missionText.append(" ").append(finishButton);
+            text.append(missionText);
+
+            if(missions.getLast() != mission) {
+                text.append("\n");
+            }
+        });
+
+        feedbackCallback.apply(text);
+    }
+
+    private static void createTypeScreen(
+            Set<MissionType> missionTypes,
+            Function<Text, Void> feedbackCallback,
+            Function<MissionType, ClickEvent> typeClickCallback
+    ) {
         MutableText text = Text.literal("");
 
         missionTypes.forEach(missionType -> {

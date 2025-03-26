@@ -13,7 +13,7 @@ abstract class AbstractMissionSuggester implements SuggestionProvider<ServerComm
     protected void suggestMissions(List<Mission> missions, SuggestionsBuilder suggestionsBuilder) {
         for(Mission mission : missions) {
             if(CommandSource.shouldSuggest(suggestionsBuilder.getRemaining(), mission.name)) {
-                suggestionsBuilder.suggest("\"" + mission.name + "\"");
+                suggestionsBuilder.suggest(mission.name);
             }
         }
     }
