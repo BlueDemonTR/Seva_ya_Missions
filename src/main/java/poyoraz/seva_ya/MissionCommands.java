@@ -104,7 +104,7 @@ public class MissionCommands {
                 missionType -> {
                     return new ClickEvent(
                             ClickEvent.Action.SUGGEST_COMMAND,
-                            "/missions show " + missionType.name()
+                            "/missions get " + missionType.name()
                     );
                 },
                 mission -> {
