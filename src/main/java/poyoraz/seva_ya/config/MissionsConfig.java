@@ -27,4 +27,8 @@ public class MissionsConfig extends MidnightConfig {
             "minecraft:iron_ingot",
             "minecraft:iron_block"
     );
+
+    @Entry(category = NUMBERS, name="Assigned Mission Count") public static int assignedRewardCount = 10;
+    @Entry(category = TEXT, name ="Assigned Mission Award") public static String assignedRewardItem = "minecraft:emerald";
+
 }

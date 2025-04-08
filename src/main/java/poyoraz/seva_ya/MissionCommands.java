@@ -8,10 +8,14 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
+import poyoraz.seva_ya.config.MissionsConfig;
 import poyoraz.seva_ya.models.AssignedMission;
 import poyoraz.seva_ya.models.Mission;
 import poyoraz.seva_ya.models.MissionType;
@@ -427,6 +431,13 @@ public class MissionCommands {
                 .removeIf(assignedMission -> {
                     return assignedMission.id.equals(mission.id);
                 });
+
+        assignee.giveOrDropStack(
+                new ItemStack(
+                        Registries.ITEM.get(Identifier.of(MissionsConfig.assignedRewardItem)),
+                        MissionsConfig.assignedRewardCount
+                )
+        );
 
         return 1;
     }
