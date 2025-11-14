@@ -22,10 +22,15 @@ public class StateSaverAndLoader extends PersistentState {
     public ArrayList<UUID> overseers = new ArrayList<>();
 
     private static final Type<StateSaverAndLoader> type = new Type<>(
-            StateSaverAndLoader::new, // If there's no 'StateSaverAndLoader' yet create one
+            StateSaverAndLoader::createNew, // If there's no 'StateSaverAndLoader' yet create one and refresh variables
             StateSaverAndLoader::createFromNbt, // If there is a 'StateSaverAndLoader' NBT, parse it with 'createFromNbt'
             null // Supposed to be an 'DataFixTypes' enum, but we can just pass null
     );
+
+    public static StateSaverAndLoader createNew() {
+        StateSaverAndLoader state = new StateSaverAndLoader();
+        return state;
+    }
 
     public static StateSaverAndLoader getServerState(MinecraftServer server) {
         // (Note: arbitrary choice to use 'World.OVERWORLD' instead of 'World.END' or 'World.NETHER'.  Any work)
